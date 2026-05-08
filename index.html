@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Solo Fretboard Scale Visualizer</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="particle-field" aria-hidden="true"></div>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow" data-i18n="eyebrow">Guitar Solo Fretboard</p>
+          <h1 data-i18n="title">Scale Sight-Reading</h1>
+        </div>
+        <div class="topbar-actions">
+          <label class="language-picker">
+            <span data-i18n="language">Language</span>
+            <select id="languageSelect">
+              <option value="en">English</option>
+              <option value="zh-Hant">中文繁體</option>
+            </select>
+          </label>
+          <div class="route-readout" id="routeReadout">
+            <span>Start -</span>
+            <span>End -</span>
+          </div>
+        </div>
+      </header>
+
+      <button class="mobile-controls-toggle" type="button" id="mobileControlsToggle" aria-expanded="false">
+        Controls
+      </button>
+
+      <div class="control-panel" id="controlPanel">
+        <section class="controls" aria-label="Fretboard controls">
+          <label>
+            <span data-i18n="key">Key</span>
+            <select id="keySelect"></select>
+          </label>
+          <label>
+            <span data-i18n="scale">Scale</span>
+            <select id="scaleSelect"></select>
+          </label>
+          <label>
+            <span data-i18n="display">Display</span>
+            <select id="labelModeSelect">
+              <option value="jianpu" data-i18n="displayNumber">Number</option>
+              <option value="jianpu-note" data-i18n="displayNumberNote">Number + Note</option>
+              <option value="chord-degree" data-i18n="displayDegreeChord">Degree Chord</option>
+            </select>
+          </label>
+          <label>
+            <span data-i18n="mode">Mode</span>
+            <select id="viewModeSelect">
+              <option value="range" data-i18n="modeRange">Range</option>
+              <option value="route" data-i18n="modeRoute">Route</option>
+            </select>
+          </label>
+          <label>
+            <span data-i18n="startFret">Start Fret</span>
+            <input id="startFretInput" type="number" min="0" max="24" value="0" />
+          </label>
+          <label>
+            <span data-i18n="endFret">End Fret</span>
+            <input id="endFretInput" type="number" min="0" max="24" value="16" />
+          </label>
+          <label class="switch-control">
+            <span data-i18n="showOpen">Show Open</span>
+            <input id="openStringToggle" type="checkbox" />
+          </label>
+          <div class="preset-group" aria-label="Fret range presets">
+            <button class="ghost-button" type="button" data-preset="0-16">0-16</button>
+            <button class="ghost-button" type="button" data-preset="0-24">0-24</button>
+            <button class="ghost-button" type="button" data-preset="5-12">5-12</button>
+          </div>
+        </section>
+
+        <section class="degree-strip" id="degreeStrip" aria-label="Degree selection">
+          <button type="button" class="degree-button active" data-degree="1">Degree 1</button>
+          <button type="button" class="degree-button" data-degree="2">Degree 2</button>
+          <button type="button" class="degree-button" data-degree="3">Degree 3</button>
+          <button type="button" class="degree-button" data-degree="4">Degree 4</button>
+          <button type="button" class="degree-button" data-degree="5">Degree 5</button>
+          <button type="button" class="degree-button" data-degree="6">Degree 6</button>
+          <button type="button" class="degree-button" data-degree="7">Degree 7</button>
+          <div class="legend">
+            <span><i class="root-color"></i><span data-i18n="root">Root</span></span>
+            <span><i class="third-color"></i><span data-i18n="third">Third</span></span>
+            <span><i class="fifth-color"></i><span data-i18n="fifth">Fifth</span></span>
+            <span><i class="seventh-color"></i><span data-i18n="seventh">Seventh</span></span>
+          </div>
+        </section>
+
+        <section class="route-tools" id="routeTools" aria-label="Route settings">
+          <button class="route-button active" type="button" data-route-pick="start" data-i18n="setStart">Set Start</button>
+          <button class="route-button" type="button" data-route-pick="end" data-i18n="setEnd">Set End</button>
+          <button class="ghost-button" type="button" id="clearRouteButton" data-i18n="clearRoute">Clear Route</button>
+        </section>
+
+        <section class="manual-tools" id="manualTools" aria-label="Manual highlight">
+          <label class="switch-control">
+            <span data-i18n="manualHighlight">Manual Highlight</span>
+            <input id="manualHighlightToggle" type="checkbox" />
+          </label>
+          <button class="route-button" type="button" id="confirmManualButton" data-i18n="confirmHighlight">Confirm</button>
+          <button class="ghost-button" type="button" id="clearManualButton" data-i18n="clearHighlight">Clear</button>
+          <span class="manual-status" id="manualHighlightStatus">Off</span>
+        </section>
+      </div>
+
+      <section class="fretboard-wrap" aria-label="Horizontal six-string fretboard">
+        <div class="fretboard-head" id="fretboardHead"></div>
+        <div class="fretboard" id="fretboard"></div>
+      </section>
+
+      <section class="status-panel">
+        <div>
+          <span class="status-label" data-i18n="current">Current</span>
+          <strong id="currentSummary">C Major Scale · Number · 0-16 Frets</strong>
+        </div>
+        <div>
+          <span class="status-label" data-i18n="reference">Reference</span>
+          <strong id="octaveSummary">C Key 1 = C4</strong>
+        </div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
