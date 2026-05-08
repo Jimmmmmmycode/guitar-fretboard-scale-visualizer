@@ -85,11 +85,25 @@
           <button type="button" class="degree-button" data-degree="5">Degree 5</button>
           <button type="button" class="degree-button" data-degree="6">Degree 6</button>
           <button type="button" class="degree-button" data-degree="7">Degree 7</button>
+          <div class="extension-group" aria-label="Chord extensions">
+            <span data-i18n="extensions">Extensions</span>
+            <button type="button" class="extension-button" data-extension="2">2(9)</button>
+            <button type="button" class="extension-button" data-extension="4">4(11)</button>
+            <button type="button" class="extension-button" data-extension="6">6(13)</button>
+            <button type="button" class="extension-button" data-extension="7">7</button>
+          </div>
+          <label class="switch-control chord-label-control">
+            <span data-i18n="chordLabels">Chord Labels</span>
+            <input id="chordLabelToggle" type="checkbox" />
+          </label>
           <div class="legend">
             <span><i class="root-color"></i><span data-i18n="root">Root</span></span>
             <span><i class="third-color"></i><span data-i18n="third">Third</span></span>
             <span><i class="fifth-color"></i><span data-i18n="fifth">Fifth</span></span>
             <span><i class="seventh-color"></i><span data-i18n="seventh">Seventh</span></span>
+            <span><i class="second-color"></i><span data-i18n="second">Second</span></span>
+            <span><i class="fourth-color"></i><span data-i18n="fourth">Fourth</span></span>
+            <span><i class="sixth-color"></i><span data-i18n="sixth">Sixth</span></span>
           </div>
         </section>
 
@@ -97,6 +111,24 @@
           <button class="route-button active" type="button" data-route-pick="start" data-i18n="setStart">Set Start</button>
           <button class="route-button" type="button" data-route-pick="end" data-i18n="setEnd">Set End</button>
           <button class="ghost-button" type="button" id="clearRouteButton" data-i18n="clearRoute">Clear Route</button>
+        </section>
+
+        <section class="alternative-tools" id="alternativeTools" aria-label="Alternative positions">
+          <label class="switch-control">
+            <span data-i18n="alternativePositions">Alternative Positions</span>
+            <input id="alternativeToggle" type="checkbox" />
+          </label>
+          <div class="best-path-list" id="alternativeList"></div>
+          <span class="manual-status" id="alternativeStatus">Off</span>
+        </section>
+
+        <section class="best-path-tools" id="bestPathTools" aria-label="Best path">
+          <label class="switch-control">
+            <span data-i18n="bestPath">Best Path</span>
+            <input id="bestPathToggle" type="checkbox" />
+          </label>
+          <div class="best-path-list" id="bestPathList"></div>
+          <span class="manual-status" id="bestPathStatus">Off</span>
         </section>
 
         <section class="manual-tools" id="manualTools" aria-label="Manual highlight">
@@ -122,7 +154,7 @@
         </div>
         <div>
           <span class="status-label" data-i18n="reference">Reference</span>
-          <strong id="octaveSummary">C Key 1 = C4</strong>
+          <strong id="octaveSummary">C Key 1 = C3</strong>
         </div>
       </section>
     </main>

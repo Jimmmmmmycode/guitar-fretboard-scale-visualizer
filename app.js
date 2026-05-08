@@ -69,14 +69,40 @@ const I18N = {
     endFret: "End Fret",
     showOpen: "Show Open",
     root: "Root",
+    second: "Second",
     third: "Third",
+    fourth: "Fourth",
     fifth: "Fifth",
+    sixth: "Sixth",
     seventh: "Seventh",
+    extensions: "Extensions",
+    chordLabels: "Chord Labels",
     setStart: "Set Start",
     setEnd: "Set End",
     clearRoute: "Clear Route",
+    alternativePositions: "Alternative Positions",
+    alternativeOff: "Off",
+    alternativeNeedsRoute: "Set start and end",
+    alternativeNoPositions: "No alternatives",
+    alternativePick: "Choose a position",
+    alternativeSelected: "{name} selected",
+    altCurrentPosition: "Current Position",
+    altPosition: "Alt Position",
+    altRouteMeta: "{start} → {end}",
+    bestPath: "Best Path",
+    bestPathOff: "Off",
+    bestPathNeedsRoute: "Set start and end",
+    bestPathNoPath: "No complete path",
+    bestPathPick: "Choose a path",
+    bestPathSelected: "{name} selected",
+    pathStartPosition: "Start Position",
+    pathCompact: "Compact",
+    pathSmooth: "Smooth",
+    path3Nps: "3NPS",
+    pathMeta: "Frets {frets} · {changes} shifts · {notes} notes",
     manualHighlight: "Manual Highlight",
     confirmHighlight: "Confirm",
+    editHighlight: "Edit",
     clearHighlight: "Clear",
     manualOff: "Off",
     manualSelecting: "Selecting {count}",
@@ -115,14 +141,40 @@ const I18N = {
     endFret: "結束品",
     showOpen: "顯示空弦",
     root: "根音",
+    second: "二音",
     third: "三音",
+    fourth: "四音",
     fifth: "五音",
+    sixth: "六音",
     seventh: "七音",
+    extensions: "延伸音",
+    chordLabels: "和弦標籤",
     setStart: "設定起點",
     setEnd: "設定終點",
     clearRoute: "清除路線",
+    alternativePositions: "替代把位",
+    alternativeOff: "關閉",
+    alternativeNeedsRoute: "請設定起點與終點",
+    alternativeNoPositions: "無替代把位",
+    alternativePick: "選擇把位",
+    alternativeSelected: "已選擇{name}",
+    altCurrentPosition: "目前把位",
+    altPosition: "替代把位",
+    altRouteMeta: "{start} → {end}",
+    bestPath: "最佳路徑",
+    bestPathOff: "關閉",
+    bestPathNeedsRoute: "請設定起點與終點",
+    bestPathNoPath: "無完整路徑",
+    bestPathPick: "選擇路徑",
+    bestPathSelected: "已選擇{name}",
+    pathStartPosition: "起點把位",
+    pathCompact: "緊湊",
+    pathSmooth: "順手",
+    path3Nps: "三音一弦",
+    pathMeta: "品位 {frets} · {changes} 次換弦 · {notes} 音",
     manualHighlight: "手動高亮",
     confirmHighlight: "確認",
+    editHighlight: "編輯",
     clearHighlight: "清除",
     manualOff: "關閉",
     manualSelecting: "選擇中 {count}",
@@ -156,6 +208,8 @@ const state = {
   startFret: 0,
   endFret: 16,
   showOpenString: false,
+  activeExtensions: new Set(),
+  showChordLabels: false,
   manualHighlightEnabled: false,
   manualHighlightSelecting: false,
   pendingManualHighlights: new Set(),
@@ -164,6 +218,12 @@ const state = {
   routePick: "start",
   routeStart: null,
   routeEnd: null,
+  alternativeEnabled: false,
+  alternativeCandidates: [],
+  selectedAlternativeId: null,
+  bestPathEnabled: false,
+  bestPathCandidates: [],
+  selectedBestPathId: null,
   audioContext: null,
 };
 
@@ -176,6 +236,7 @@ const els = {
   startFretInput: document.querySelector("#startFretInput"),
   endFretInput: document.querySelector("#endFretInput"),
   openStringToggle: document.querySelector("#openStringToggle"),
+  chordLabelToggle: document.querySelector("#chordLabelToggle"),
   manualHighlightToggle: document.querySelector("#manualHighlightToggle"),
   confirmManualButton: document.querySelector("#confirmManualButton"),
   clearManualButton: document.querySelector("#clearManualButton"),
@@ -184,6 +245,14 @@ const els = {
   fretboard: document.querySelector("#fretboard"),
   degreeStrip: document.querySelector("#degreeStrip"),
   routeTools: document.querySelector("#routeTools"),
+  alternativeTools: document.querySelector("#alternativeTools"),
+  alternativeToggle: document.querySelector("#alternativeToggle"),
+  alternativeList: document.querySelector("#alternativeList"),
+  alternativeStatus: document.querySelector("#alternativeStatus"),
+  bestPathTools: document.querySelector("#bestPathTools"),
+  bestPathToggle: document.querySelector("#bestPathToggle"),
+  bestPathList: document.querySelector("#bestPathList"),
+  bestPathStatus: document.querySelector("#bestPathStatus"),
   routeReadout: document.querySelector("#routeReadout"),
   currentSummary: document.querySelector("#currentSummary"),
   octaveSummary: document.querySelector("#octaveSummary"),
@@ -233,6 +302,8 @@ function bindEvents() {
     state.keyPrefer = key.prefer;
     state.routeStart = null;
     state.routeEnd = null;
+    resetAlternativePositions();
+    resetBestPath();
     resetManualHighlight();
     render();
   });
@@ -241,6 +312,8 @@ function bindEvents() {
     state.scaleId = els.scaleSelect.value;
     state.routeStart = null;
     state.routeEnd = null;
+    resetAlternativePositions();
+    resetBestPath();
     resetManualHighlight();
     render();
   });
@@ -253,6 +326,10 @@ function bindEvents() {
 
   els.viewModeSelect.addEventListener("change", () => {
     state.viewMode = els.viewModeSelect.value;
+    if (state.viewMode !== "route") {
+      resetAlternativePositions();
+      resetBestPath();
+    }
     render();
   });
 
@@ -266,6 +343,13 @@ function bindEvents() {
 
   els.openStringToggle.addEventListener("change", () => {
     state.showOpenString = els.openStringToggle.checked;
+    resetAlternativePositions();
+    resetBestPath();
+    render();
+  });
+
+  els.chordLabelToggle.addEventListener("change", () => {
+    state.showChordLabels = els.chordLabelToggle.checked;
     render();
   });
 
@@ -273,7 +357,7 @@ function bindEvents() {
     if (els.manualHighlightToggle.checked) {
       state.manualHighlightEnabled = true;
       state.manualHighlightSelecting = true;
-      state.pendingManualHighlights = new Set();
+      state.pendingManualHighlights = new Set(getInitialManualHighlightIds());
       state.manualHighlights = new Set();
     } else {
       resetManualHighlight();
@@ -285,6 +369,14 @@ function bindEvents() {
     if (!state.manualHighlightEnabled) {
       return;
     }
+
+    if (!state.manualHighlightSelecting) {
+      state.pendingManualHighlights = new Set(state.manualHighlights);
+      state.manualHighlightSelecting = true;
+      render();
+      return;
+    }
+
     state.manualHighlights = new Set(state.pendingManualHighlights);
     state.manualHighlightSelecting = false;
     render();
@@ -300,11 +392,35 @@ function bindEvents() {
     render();
   });
 
+  els.bestPathToggle.addEventListener("change", () => {
+    if (els.bestPathToggle.checked) {
+      state.bestPathEnabled = true;
+      state.selectedBestPathId = null;
+      state.bestPathCandidates = buildBestPathCandidates();
+    } else {
+      resetBestPath();
+    }
+    render();
+  });
+
+  els.alternativeToggle.addEventListener("change", () => {
+    if (els.alternativeToggle.checked) {
+      state.alternativeEnabled = true;
+      state.selectedAlternativeId = null;
+      state.alternativeCandidates = buildAlternativePositionCandidates();
+    } else {
+      resetAlternativePositions();
+    }
+    render();
+  });
+
   document.querySelectorAll("[data-preset]").forEach((button) => {
     button.addEventListener("click", () => {
       const [start, end] = button.dataset.preset.split("-").map(Number);
       state.startFret = start;
       state.endFret = end;
+      resetAlternativePositions();
+      resetBestPath();
       syncControls();
       render();
     });
@@ -313,6 +429,18 @@ function bindEvents() {
   document.querySelectorAll("[data-degree]").forEach((button) => {
     button.addEventListener("click", () => {
       state.activeDegree = Number(button.dataset.degree);
+      render();
+    });
+  });
+
+  document.querySelectorAll("[data-extension]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const extension = Number(button.dataset.extension);
+      if (state.activeExtensions.has(extension)) {
+        state.activeExtensions.delete(extension);
+      } else {
+        state.activeExtensions.add(extension);
+      }
       render();
     });
   });
@@ -327,6 +455,8 @@ function bindEvents() {
   els.clearRouteButton.addEventListener("click", () => {
     state.routeStart = null;
     state.routeEnd = null;
+    resetAlternativePositions();
+    resetBestPath();
     render();
   });
 
@@ -355,6 +485,8 @@ function updateFretRange() {
   const end = clamp(Number(els.endFretInput.value), 0, 24);
   state.startFret = Math.min(start, end);
   state.endFret = Math.max(start, end);
+  resetAlternativePositions();
+  resetBestPath();
   syncControls();
   render();
 }
@@ -368,7 +500,10 @@ function syncControls() {
   els.startFretInput.value = state.startFret;
   els.endFretInput.value = state.endFret;
   els.openStringToggle.checked = state.showOpenString;
+  els.chordLabelToggle.checked = state.showChordLabels;
   els.manualHighlightToggle.checked = state.manualHighlightEnabled;
+  els.alternativeToggle.checked = state.alternativeEnabled;
+  els.bestPathToggle.checked = state.bestPathEnabled;
 }
 
 function renderStaticText() {
@@ -380,6 +515,8 @@ function renderStaticText() {
   document.querySelector(".controls")?.setAttribute("aria-label", t("controls"));
   document.querySelector(".degree-strip")?.setAttribute("aria-label", t("displayDegreeChord"));
   document.querySelector(".route-tools")?.setAttribute("aria-label", t("modeRoute"));
+  document.querySelector(".alternative-tools")?.setAttribute("aria-label", t("alternativePositions"));
+  document.querySelector(".best-path-tools")?.setAttribute("aria-label", t("bestPath"));
   document.querySelector(".manual-tools")?.setAttribute("aria-label", t("manualHighlight"));
   document.querySelector(".fretboard-wrap")?.setAttribute("aria-label", "Fretboard");
   updateDegreeButtonLabels();
@@ -414,16 +551,23 @@ function render() {
   syncControls();
   renderDegreeStrip();
   renderRouteTools();
+  renderAlternativeTools();
+  renderBestPathTools();
   renderManualTools();
   renderFretboard();
   renderStatus();
 }
 
 function renderManualTools() {
-  els.confirmManualButton.disabled = !state.manualHighlightEnabled || !state.manualHighlightSelecting;
+  els.confirmManualButton.disabled = !state.manualHighlightEnabled;
+  els.confirmManualButton.textContent =
+    state.manualHighlightEnabled && !state.manualHighlightSelecting
+      ? t("editHighlight")
+      : t("confirmHighlight");
   els.clearManualButton.disabled = !state.manualHighlightEnabled;
 
   if (!state.manualHighlightEnabled) {
+    els.confirmManualButton.textContent = t("confirmHighlight");
     els.manualHighlightStatus.textContent = t("manualOff");
     return;
   }
@@ -446,6 +590,9 @@ function renderDegreeStrip() {
   document.querySelectorAll("[data-degree]").forEach((button) => {
     button.classList.toggle("active", Number(button.dataset.degree) === state.activeDegree);
   });
+  document.querySelectorAll("[data-extension]").forEach((button) => {
+    button.classList.toggle("active", state.activeExtensions.has(Number(button.dataset.extension)));
+  });
 }
 
 function updateDegreeButtonLabels() {
@@ -461,11 +608,126 @@ function renderRouteTools() {
   });
 }
 
+function renderAlternativeTools() {
+  const canUse =
+    state.viewMode === "route" &&
+    state.routeStart &&
+    state.routeEnd &&
+    isRoutePointVisible(state.routeStart) &&
+    isRoutePointVisible(state.routeEnd);
+  els.alternativeTools.classList.toggle("is-visible", state.viewMode === "route");
+  els.alternativeToggle.disabled = !canUse;
+  els.alternativeList.replaceChildren();
+
+  if (!canUse) {
+    els.alternativeStatus.textContent = t("alternativeNeedsRoute");
+    return;
+  }
+
+  if (!state.alternativeEnabled) {
+    els.alternativeStatus.textContent = t("alternativeOff");
+    return;
+  }
+
+  if (!state.alternativeCandidates.length) {
+    els.alternativeStatus.textContent = t("alternativeNoPositions");
+    return;
+  }
+
+  state.alternativeCandidates.forEach((candidate) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "best-path-card";
+    button.classList.toggle("active", candidate.id === state.selectedAlternativeId);
+    const name = t(candidate.nameKey);
+    button.innerHTML = `
+      <strong>${name}</strong>
+      <span>${t("altRouteMeta", {
+        start: formatCompactRoutePoint(candidate.start),
+        end: formatCompactRoutePoint(candidate.end),
+      })}</span>
+      <span>${t("pathMeta", {
+        frets: candidate.fretRange,
+        changes: candidate.stringChanges,
+        notes: candidate.path.length,
+      })}</span>
+    `;
+    button.addEventListener("click", () => {
+      selectAlternativePosition(candidate);
+    });
+    els.alternativeList.append(button);
+  });
+
+  const selected = state.alternativeCandidates.find(
+    (candidate) => candidate.id === state.selectedAlternativeId,
+  );
+  els.alternativeStatus.textContent = selected
+    ? t("alternativeSelected", { name: t(selected.nameKey) })
+    : t("alternativePick");
+}
+
+function renderBestPathTools() {
+  const canUse =
+    state.viewMode === "route" &&
+    state.routeStart &&
+    state.routeEnd &&
+    isRoutePointVisible(state.routeStart) &&
+    isRoutePointVisible(state.routeEnd);
+  els.bestPathTools.classList.toggle("is-visible", state.viewMode === "route");
+  els.bestPathToggle.disabled = !canUse;
+  els.bestPathList.replaceChildren();
+
+  if (!canUse) {
+    els.bestPathStatus.textContent = t("bestPathNeedsRoute");
+    return;
+  }
+
+  if (!state.bestPathEnabled) {
+    els.bestPathStatus.textContent = t("bestPathOff");
+    return;
+  }
+
+  if (!state.bestPathCandidates.length) {
+    els.bestPathStatus.textContent = t("bestPathNoPath");
+    return;
+  }
+
+  state.bestPathCandidates.forEach((candidate) => {
+    const name = t(candidate.nameKey);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "best-path-card";
+    button.classList.toggle("active", candidate.id === state.selectedBestPathId);
+    button.innerHTML = `
+      <strong>${name}</strong>
+      <span>${t("pathMeta", {
+        frets: candidate.fretRange,
+        changes: candidate.stringChanges,
+        notes: candidate.path.length,
+      })}</span>
+    `;
+    button.addEventListener("click", () => {
+      state.selectedBestPathId = candidate.id;
+      render();
+    });
+    els.bestPathList.append(button);
+  });
+
+  const selected = getSelectedBestPath();
+  els.bestPathStatus.textContent = selected
+    ? t("bestPathSelected", { name: t(selected.nameKey) })
+    : t("bestPathPick");
+}
+
 function renderFretboard() {
   const visibleStartFret = getVisibleStartFret();
   const fretCount = Math.max(0, state.endFret - visibleStartFret + 1);
   els.fretboardHead.style.setProperty("--fret-count", fretCount);
   els.fretboard.style.setProperty("--fret-count", fretCount);
+  els.fretboard.classList.toggle(
+    "has-selected-best-path",
+    state.viewMode === "route" && state.bestPathEnabled && Boolean(state.selectedBestPathId),
+  );
   els.fretboardHead.replaceChildren();
   els.fretboard.replaceChildren();
 
@@ -487,6 +749,9 @@ function renderFretboard() {
   STRINGS.forEach((string) => {
     const stringLabel = document.createElement("div");
     stringLabel.className = "string-label";
+    if (string.number === 1) {
+      stringLabel.classList.add("top-string-row");
+    }
     stringLabel.textContent = `${t("string")} ${string.number} ${string.name}`;
     els.fretboard.append(stringLabel);
 
@@ -494,6 +759,9 @@ function renderFretboard() {
       const midi = string.midi + fret;
       const cell = document.createElement("div");
       cell.className = "fret-cell";
+      if (string.number === 1) {
+        cell.classList.add("top-string-row");
+      }
       cell.style.setProperty("--string-height", `${string.gauge}px`);
       if (fret === 0) {
         cell.classList.add("fret-zero");
@@ -537,6 +805,7 @@ function createNoteButton(noteInfo, string, fret, midi) {
   const chordRole = getChordRole(noteInfo.degreeIndex);
   const manualId = pointId(string.number, fret);
   const manualState = getManualHighlightState(manualId);
+  const bestPathState = getBestPathPointState(manualId);
   button.type = "button";
   button.className = "note-dot";
   button.title = `${t("string")} ${string.number} · ${t("fret")} ${fret} · ${noteName(midi)} · ${noteInfo.octaveText}`;
@@ -554,6 +823,18 @@ function createNoteButton(noteInfo, string, fret, midi) {
     button.classList.add(`chord-${chordRole}`);
   }
 
+  if (state.labelMode === "chord-degree" && !chordRole) {
+    button.classList.add("degree-hidden");
+  }
+
+  const chordLabel = getChordLabel(chordRole);
+  if (state.labelMode === "chord-degree" && state.showChordLabels && chordLabel) {
+    const label = document.createElement("span");
+    label.className = "chord-tone-label";
+    label.textContent = chordLabel;
+    button.append(label);
+  }
+
   if (state.viewMode === "route") {
     if (routeState.inRoute) {
       button.classList.add("route-note");
@@ -563,6 +844,16 @@ function createNoteButton(noteInfo, string, fret, midi) {
 
     if (routeState.isEndpoint) {
       button.classList.add("endpoint");
+    }
+  }
+
+  if (state.viewMode === "route" && state.bestPathEnabled && state.selectedBestPathId) {
+    if (state.manualHighlightEnabled && manualState.isActive) {
+      button.classList.add("best-path-note");
+    } else if (!state.manualHighlightEnabled && bestPathState.inPath) {
+      button.classList.add("best-path-note");
+    } else if (routeState.inRoute) {
+      button.classList.add("best-path-context");
     }
   }
 
@@ -603,6 +894,10 @@ function createNoteButton(noteInfo, string, fret, midi) {
       return;
     }
 
+    if (state.viewMode === "route" && state.bestPathEnabled && state.selectedBestPathId) {
+      return;
+    }
+
     if (state.viewMode === "route") {
       setRoutePoint(string, fret, midi, noteInfo);
     }
@@ -634,11 +929,459 @@ function togglePendingManualHighlight(id) {
   state.pendingManualHighlights.add(id);
 }
 
+function getInitialManualHighlightIds() {
+  const selected = getSelectedBestPath();
+  if (state.viewMode === "route" && state.bestPathEnabled && selected) {
+    return selected.pointIds;
+  }
+
+  return [];
+}
+
 function resetManualHighlight() {
   state.manualHighlightEnabled = false;
   state.manualHighlightSelecting = false;
   state.pendingManualHighlights = new Set();
   state.manualHighlights = new Set();
+}
+
+function resetBestPath() {
+  state.bestPathEnabled = false;
+  state.bestPathCandidates = [];
+  state.selectedBestPathId = null;
+}
+
+function resetAlternativePositions() {
+  state.alternativeEnabled = false;
+  state.alternativeCandidates = [];
+  state.selectedAlternativeId = null;
+}
+
+function getSelectedBestPath() {
+  if (!state.selectedBestPathId) {
+    return null;
+  }
+
+  return state.bestPathCandidates.find((candidate) => candidate.id === state.selectedBestPathId) ?? null;
+}
+
+function getBestPathPointState(id) {
+  const selected = getSelectedBestPath();
+  if (!selected) {
+    return { inPath: false };
+  }
+
+  return { inPath: selected.pointIds.has(id) };
+}
+
+function buildBestPathCandidates(
+  start = state.routeStart,
+  end = state.routeEnd,
+  modes = [
+    { id: "start-position", nameKey: "pathStartPosition" },
+    { id: "compact", nameKey: "pathCompact" },
+    { id: "smooth", nameKey: "pathSmooth" },
+    { id: "3nps", nameKey: "path3Nps" },
+  ],
+) {
+  if (
+    !start ||
+    !end ||
+    start.midi === end.midi ||
+    !isRoutePointVisible(start) ||
+    !isRoutePointVisible(end)
+  ) {
+    return [];
+  }
+
+  const targetMidis = buildRouteMidiSequence(start, end);
+  if (targetMidis.length < 2) {
+    return [];
+  }
+
+  const layers = targetMidis.map((midi, index) =>
+    buildPositionCandidatesForMidi(midi, index, targetMidis.length, start, end),
+  );
+  if (layers.some((layer) => layer.length === 0)) {
+    return [];
+  }
+
+  const context = {
+    direction: start.midi < end.midi ? 1 : -1,
+    preferredWindow: getPreferredFretWindow(start, end),
+  };
+
+  const seen = new Set();
+  return modes
+    .map((mode) => searchBestPath(layers, mode, context))
+    .filter(Boolean)
+    .filter((candidate) => {
+      const signature = candidate.path.map((point) => point.id).join(">");
+      if (seen.has(signature)) {
+        return false;
+      }
+      seen.add(signature);
+      return true;
+    });
+}
+
+function buildRouteMidiSequence(start = state.routeStart, end = state.routeEnd) {
+  const direction = start.midi < end.midi ? 1 : -1;
+  const low = Math.min(start.midi, end.midi);
+  const high = Math.max(start.midi, end.midi);
+  const midis = [];
+
+  for (let midi = low; midi <= high; midi += 1) {
+    if (getScaleNoteInfo(midi)) {
+      midis.push(midi);
+    }
+  }
+
+  return direction === 1 ? midis : midis.reverse();
+}
+
+function buildPositionCandidatesForMidi(midi, index, layerCount, start = state.routeStart, end = state.routeEnd) {
+  if (index === 0) {
+    return [routePointToCandidate(start)];
+  }
+  if (index === layerCount - 1) {
+    return [routePointToCandidate(end)];
+  }
+
+  return buildAllPositionsForMidi(midi);
+}
+
+function routePointToCandidate(point) {
+  return {
+    stringNumber: point.stringNumber,
+    fret: point.fret,
+    midi: point.midi,
+    id: pointId(point.stringNumber, point.fret),
+  };
+}
+
+function buildAllPositionsForMidi(midi) {
+  const visibleStartFret = getVisibleStartFret();
+  const candidates = [];
+  STRINGS.forEach((string) => {
+    for (let fret = visibleStartFret; fret <= state.endFret; fret += 1) {
+      if (string.midi + fret === midi) {
+        candidates.push({
+          stringNumber: string.number,
+          fret,
+          midi,
+          id: pointId(string.number, fret),
+        });
+      }
+    }
+  });
+  return candidates;
+}
+
+function buildAlternativePositionCandidates() {
+  if (!state.routeStart || !state.routeEnd || state.routeStart.midi === state.routeEnd.midi) {
+    return [];
+  }
+
+  const starts = sortAlternativePositions(buildAllPositionsForMidi(state.routeStart.midi), state.routeStart);
+  const ends = sortAlternativePositions(buildAllPositionsForMidi(state.routeEnd.midi), state.routeEnd);
+  const modes = [{ id: "start-position", nameKey: "pathStartPosition" }];
+  const seen = new Set();
+  const candidates = [];
+
+  starts.forEach((start) => {
+    ends.forEach((end) => {
+      if (start.id === end.id) {
+        return;
+      }
+
+      const path = buildBestPathCandidates(
+        createRoutePointFromCandidate(start),
+        createRoutePointFromCandidate(end),
+        modes,
+      )[0];
+      if (!path) {
+        return;
+      }
+
+      const isCurrent = isSamePoint(state.routeStart, start.stringNumber, start.fret) &&
+        isSamePoint(state.routeEnd, end.stringNumber, end.fret);
+      const signature = `${start.id}>${end.id}>${path.path.map((point) => point.id).join(">")}`;
+      if (seen.has(signature)) {
+        return;
+      }
+      seen.add(signature);
+
+      candidates.push({
+        ...path,
+        id: `alt-${start.id}-${end.id}-${candidates.length}`,
+        nameKey: isCurrent ? "altCurrentPosition" : "altPosition",
+        start,
+        end,
+        isCurrent,
+        toneProfile: null,
+        positionGroup: getPositionGroup(path),
+        chainGroup: null,
+      });
+    });
+  });
+
+  return candidates
+    .sort((a, b) => {
+      if (a.isCurrent !== b.isCurrent) {
+        return a.isCurrent ? -1 : 1;
+      }
+      return a.cost - b.cost;
+    })
+    .slice(0, 6);
+}
+
+function sortAlternativePositions(points, currentPoint) {
+  return [...points].sort((a, b) => {
+    const aCurrent = isSamePoint(currentPoint, a.stringNumber, a.fret);
+    const bCurrent = isSamePoint(currentPoint, b.stringNumber, b.fret);
+    if (aCurrent !== bCurrent) {
+      return aCurrent ? -1 : 1;
+    }
+    return Math.abs(a.fret - currentPoint.fret) - Math.abs(b.fret - currentPoint.fret);
+  });
+}
+
+function createRoutePointFromCandidate(candidate) {
+  const noteInfo = getScaleNoteInfo(candidate.midi);
+  return {
+    stringNumber: candidate.stringNumber,
+    fret: candidate.fret,
+    midi: candidate.midi,
+    label: noteInfo?.octaveText ?? "",
+    note: noteName(candidate.midi),
+  };
+}
+
+function selectAlternativePosition(candidate) {
+  state.routeStart = createRoutePointFromCandidate(candidate.start);
+  state.routeEnd = createRoutePointFromCandidate(candidate.end);
+  state.routePick = "start";
+  state.selectedAlternativeId = candidate.id;
+  resetManualHighlight();
+
+  state.bestPathEnabled = true;
+  state.bestPathCandidates = buildBestPathCandidates();
+  const startPositionPath = state.bestPathCandidates.find((path) => path.id === "start-position");
+  state.selectedBestPathId = startPositionPath?.id ?? state.bestPathCandidates[0]?.id ?? null;
+  render();
+}
+
+function getPositionGroup(candidate) {
+  return {
+    lowFret: candidate.minFret,
+    highFret: candidate.maxFret,
+    label: `${candidate.minFret}-${candidate.maxFret}`,
+  };
+}
+
+function isRoutePointVisible(point) {
+  const visibleStartFret = getVisibleStartFret();
+  return point.fret >= visibleStartFret && point.fret <= state.endFret;
+}
+
+function getPreferredFretWindow(start = state.routeStart, end = state.routeEnd) {
+  const startFret = start.fret;
+  if (startFret === 0) {
+    return { low: 0, high: 4 };
+  }
+  if (start.midi < end.midi) {
+    return { low: startFret, high: Math.min(24, startFret + 4) };
+  }
+  return { low: Math.max(0, startFret - 4), high: startFret };
+}
+
+function searchBestPath(layers, mode, context) {
+  let beams = layers[0].map((point) => ({
+    path: [point],
+    cost: nodeCost(point, mode, context, 0, layers.length),
+    minFret: point.fret,
+    maxFret: point.fret,
+  }));
+
+  for (let layerIndex = 1; layerIndex < layers.length; layerIndex += 1) {
+    const nextBeams = [];
+    beams.forEach((beam) => {
+      layers[layerIndex].forEach((point) => {
+        const previous = beam.path[beam.path.length - 1];
+        const minFret = Math.min(beam.minFret, point.fret);
+        const maxFret = Math.max(beam.maxFret, point.fret);
+        const previousRange = beam.maxFret - beam.minFret;
+        const nextRange = maxFret - minFret;
+        nextBeams.push({
+          path: [...beam.path, point],
+          cost:
+            beam.cost +
+            transitionCost(previous, point, mode, context) +
+            nodeCost(point, mode, context, layerIndex, layers.length) +
+            rangeCost(nextRange - previousRange, mode),
+          minFret,
+          maxFret,
+        });
+      });
+    });
+    beams = nextBeams.sort((a, b) => a.cost - b.cost).slice(0, 80);
+  }
+
+  const best = beams
+    .map((beam) => ({
+      ...beam,
+      cost: beam.cost + finalPathCost(beam, mode, context),
+    }))
+    .sort((a, b) => a.cost - b.cost)[0];
+
+  if (!best) {
+    return null;
+  }
+
+  return formatBestPathCandidate(best, mode);
+}
+
+function transitionCost(previous, point, mode, context) {
+  const fretMove = Math.abs(point.fret - previous.fret);
+  const stringMove = Math.abs(point.stringNumber - previous.stringNumber);
+  const skippedStrings = Math.max(0, stringMove - 1);
+  const weights = {
+    "start-position": { fret: 1.25, string: 2.2, skip: 5, jump: 8 },
+    compact: { fret: 1.1, string: 2, skip: 4, jump: 7 },
+    smooth: { fret: 2.3, string: 3.2, skip: 9, jump: 13 },
+    "3nps": { fret: 1.4, string: 2.4, skip: 7, jump: 9 },
+  }[mode.id];
+  let cost =
+    fretMove * weights.fret +
+    stringMove * weights.string +
+    skippedStrings * weights.skip +
+    Math.max(0, fretMove - 5) * weights.jump;
+
+  if (context.direction === 1 && point.stringNumber > previous.stringNumber) {
+    cost += 2.5;
+  }
+  if (context.direction === -1 && point.stringNumber < previous.stringNumber) {
+    cost += 2.5;
+  }
+  if (context.direction === 1 && point.stringNumber === previous.stringNumber && point.fret < previous.fret) {
+    cost += 4;
+  }
+  if (context.direction === -1 && point.stringNumber === previous.stringNumber && point.fret > previous.fret) {
+    cost += 4;
+  }
+
+  if (mode.id === "3nps") {
+    if (stringMove === 1) {
+      cost -= 0.6;
+    }
+    if (stringMove > 1) {
+      cost += 8;
+    }
+  }
+
+  return cost;
+}
+
+function nodeCost(point, mode, context, index, layerCount) {
+  let cost = 0;
+  const outsideDistance = distanceOutsideWindow(point.fret, context.preferredWindow);
+  if (mode.id === "start-position") {
+    cost += outsideDistance ? 18 + outsideDistance * 14 : 0;
+  } else if (mode.id === "smooth") {
+    cost += outsideDistance * 1.5;
+  } else if (mode.id === "3nps") {
+    cost += outsideDistance * 2.2;
+  }
+
+  if (point.fret === 0 && index !== 0 && index !== layerCount - 1) {
+    cost += mode.id === "start-position" ? 5 : 8;
+  }
+
+  return cost;
+}
+
+function rangeCost(rangeIncrease, mode) {
+  return (
+    {
+      "start-position": 1.2,
+      compact: 6,
+      smooth: 1,
+      "3nps": 1.6,
+    }[mode.id] * rangeIncrease
+  );
+}
+
+function finalPathCost(beam, mode, context) {
+  const range = beam.maxFret - beam.minFret;
+  const outsideCount = beam.path.filter(
+    (point) => distanceOutsideWindow(point.fret, context.preferredWindow) > 0,
+  ).length;
+  const stringChanges = countStringChanges(beam.path);
+  return (
+    {
+      "start-position": outsideCount * 20 + range * 1.4,
+      compact: range * 12 + stringChanges * 1.5,
+      smooth: stringChanges * 4 + range * 1.8,
+      "3nps": stringDistributionCost(beam.path) + range * 1.4 + stringChanges * 1.2,
+    }[mode.id] ?? 0
+  );
+}
+
+function stringDistributionCost(path) {
+  const counts = new Map();
+  path.forEach((point) => {
+    counts.set(point.stringNumber, (counts.get(point.stringNumber) ?? 0) + 1);
+  });
+
+  let cost = 0;
+  counts.forEach((count) => {
+    if (count === 3) {
+      cost -= 10;
+    } else if (count === 2) {
+      cost += 1.5;
+    } else if (count === 1) {
+      cost += 8;
+    } else {
+      cost += (count - 3) * 9;
+    }
+  });
+
+  return cost;
+}
+
+function distanceOutsideWindow(fret, window) {
+  if (fret < window.low) {
+    return window.low - fret;
+  }
+  if (fret > window.high) {
+    return fret - window.high;
+  }
+  return 0;
+}
+
+function formatBestPathCandidate(beam, mode) {
+  const pointIds = new Set(beam.path.map((point) => point.id));
+  return {
+    id: mode.id,
+    nameKey: mode.nameKey,
+    path: beam.path,
+    pointIds,
+    cost: beam.cost,
+    minFret: beam.minFret,
+    maxFret: beam.maxFret,
+    fretRange: `${beam.minFret}-${beam.maxFret}`,
+    stringChanges: countStringChanges(beam.path),
+  };
+}
+
+function countStringChanges(path) {
+  return path.reduce((count, point, index) => {
+    if (index === 0) {
+      return count;
+    }
+    return count + (point.stringNumber === path[index - 1].stringNumber ? 0 : 1);
+  }, 0);
 }
 
 function getScaleNoteInfo(midi) {
@@ -665,7 +1408,7 @@ function getScaleNoteInfo(midi) {
 }
 
 function getReferenceTonicMidi() {
-  return 60 + state.keyPc;
+  return 48 + state.keyPc;
 }
 
 function createJianpuMark(label, octaveOffset) {
@@ -723,10 +1466,37 @@ function getChordRole(degreeIndex) {
     { degree: root, role: "root" },
     { degree: mod(root + 2, 7), role: "third" },
     { degree: mod(root + 4, 7), role: "fifth" },
-    { degree: mod(root + 6, 7), role: "seventh" },
   ];
 
+  if (state.activeExtensions.has(2)) {
+    roles.push({ degree: mod(root + 1, 7), role: "second" });
+  }
+  if (state.activeExtensions.has(4)) {
+    roles.push({ degree: mod(root + 3, 7), role: "fourth" });
+  }
+  if (state.activeExtensions.has(6)) {
+    roles.push({ degree: mod(root + 5, 7), role: "sixth" });
+  }
+  if (state.activeExtensions.has(7)) {
+    roles.push({ degree: mod(root + 6, 7), role: "seventh" });
+  }
+
   return roles.find((item) => item.degree === degreeIndex)?.role ?? null;
+}
+
+function getChordLabel(role) {
+  const degree = state.activeDegree;
+  const labels = {
+    1: { root: "R", third: "3", fifth: "5", seventh: "7" },
+    2: { root: "R", third: "♭3", fifth: "5", seventh: "♭7" },
+    3: { root: "R", third: "♭3", fifth: "5", seventh: "♭7" },
+    4: { root: "R", third: "3", fifth: "5", seventh: "7" },
+    5: { root: "R", third: "3", fifth: "5", seventh: "♭7" },
+    6: { root: "R", third: "♭3", fifth: "5", seventh: "♭7" },
+    7: { root: "R", third: "♭3", fifth: "♭5", seventh: "♭7" },
+  };
+
+  return labels[degree]?.[role] ?? null;
 }
 
 function getRouteState(midi, stringNumber, fret) {
@@ -766,6 +1536,8 @@ function setRoutePoint(string, fret, midi, noteInfo) {
     state.routePick = "start";
   }
 
+  resetAlternativePositions();
+  resetBestPath();
   render();
 }
 
@@ -801,6 +1573,10 @@ function renderStatus() {
 
 function formatRoutePoint(point) {
   return `${point.label} ${point.note} · ${t("string")} ${point.stringNumber} ${t("fret")} ${point.fret}`;
+}
+
+function formatCompactRoutePoint(point) {
+  return `${t("string")} ${point.stringNumber} ${t("fret")} ${point.fret}`;
 }
 
 function scaleName(scale) {
